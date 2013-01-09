@@ -5,11 +5,18 @@
 
 SRCS=$(shell ls *\.c)
 OBJS=$(subst .c,.o,$(SRCS))
-APPS=$(subst .c,,$(SRCS))
+APPS= toyip
 
 LDFLAGS += -lpthread
 
-all: $(APPS)
+all: $(OBJS)
+	$(CC) -o toyip $(OBJS) $(LDFLAGS)
+
+$(OBJS): %.o:%.c
+	$(CC) -ggdb -c $(CFLAGS) $< -o $@
+
+debug: $(OBJS)
+	$(CC) -ggdb -o toyip $(OBJS) $(LDFLAGS)
 
 clean:
-	rm $(APPS)
+	rm $(APPS) $(OBJS)
