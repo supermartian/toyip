@@ -8,16 +8,17 @@
 #define MTU_LEN 1500
 #define PROTO_NUM 32
 
-int l3_sock;
+int l3_recv_sock;
+int l3_send_sock;
 struct iphdr {
-        __u8     ihl:4,
+        __u8 ihl:4,
              version:4;
-        __u8    tos;
+        __u8   tos;
         __u16  tot_len;
         __u16  id; 
         __u16  frag_off;
-        __u8    ttl;
-        __u8    protocol;
+        __u8   ttl;
+        __u8   protocol;
         __u16  check;
         __u32  saddr;
         __u32  daddr;
