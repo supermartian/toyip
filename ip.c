@@ -28,7 +28,6 @@ int ip_in(struct tbuf *buf)
     if (l3protos[ip->protocol].type == ip->protocol) {
         l3protos[ip->protocol].handler(buf);
     }
-    ip_out(buf, ip->daddr, ip->saddr, 32, IP_ICMP);
 
 end:
     tbuf_free(buf);
@@ -40,10 +39,11 @@ int ip_out(struct tbuf *buf, __u32 src, __u32 dst, __u8 ttl,
 {
     struct sockaddr_in sin;
     struct iphdr *ip;
+    // rewind to the head of payload 
     tbuf_header(buf, 0);
     ip = (struct iphdr *)buf->payload;
-    ip->saddr = htonl(src);
-    ip->daddr = htonl(dst);
+    ip->saddr = src;
+    ip->daddr = dst;
     ip->protocol = protocol;
     ip->check = checksum_generic((__u8 *)ip, ip->ihl * 4);
 
@@ -51,6 +51,8 @@ int ip_out(struct tbuf *buf, __u32 src, __u32 dst, __u8 ttl,
     sin.sin_family = AF_INET;
     sin.sin_addr.s_addr = dst;
     lowlevel_send(buf, sin);
+
+    tbuf_free(buf);
     return 0;
 }
 

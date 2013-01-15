@@ -14,8 +14,9 @@ __u16 fast_ip_checksum(struct iphdr *hdr)
     }
     result = (result >> 16) + (result & 0x0000ffffUL);
     result = result >> 16 ? result + 1 : result;
+    result = htons(~result);
 
-    return (__u16) ~result;
+    return (__u16) result;
 }
 
 __u16 checksum_generic(__u8 *buf, __u16 len)
