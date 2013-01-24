@@ -1,6 +1,6 @@
 #
-# dhcpfucker - send out a given times of dhcp requests
-# Author: Wen Yuzhong wenyuzhong@tp-link.net
+# Toyip - A toy TCP/IP stack 
+# Author: Wen Yuzhong supermartian@gmail.com 
 #
 
 SRCS=$(shell ls *\.c)
