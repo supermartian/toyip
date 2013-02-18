@@ -6,6 +6,7 @@
 #define TBUF_OK 0
 #define TBUF_FAIL 1
 
+#define ETH_HLEN 0
 #define IP_HLEN 20
 #define TRANS_HLEN 20
 

@@ -10,6 +10,8 @@
 #include "ip.h"
 #include "checksum.h"
 
+static __u8 ip_buf[MTU_LEN];
+
 int ip_in(struct tbuf *buf)
 {
     struct iphdr *ip;
@@ -17,7 +19,7 @@ int ip_in(struct tbuf *buf)
     ip = (struct iphdr *)buf->payload;
     checksum = checksum_generic((__u8 *)ip, ip->ihl * 4);
 
-    printf("protocol type: %d, checksum: %x\n", ip->protocol, checksum);
+    //printf("protocol type: %d, checksum: %x\n", ip->protocol, checksum);
     // Discard bogus packets
     if (checksum) {
         printf("screwed packet, dropped\n");
@@ -42,6 +44,8 @@ int ip_out(struct tbuf *buf, __u32 src, __u32 dst, __u8 ttl,
     // rewind to the head of payload 
     tbuf_header(buf, 0);
     ip = (struct iphdr *)buf->payload;
+    ip->version = 4;
+    ip->ttl = ttl; 
     ip->saddr = src;
     ip->daddr = dst;
     ip->protocol = protocol;
@@ -56,19 +60,20 @@ int ip_out(struct tbuf *buf, __u32 src, __u32 dst, __u8 ttl,
     return 0;
 }
 
-int lowlevel_recv(struct tbuf *buf)
+struct tbuf *lowlevel_recv()
 {
     int size = 0;
-    size = recv(l3_recv_sock, buf->payload, MTU_LEN, 0);
-    buf->len = size;
-    return size;
+    struct tbuf *buf;
+    size = recv(l3_recv_sock, ip_buf, MTU_LEN, 0);    
+    buf = tbuf_malloc(size);
+    memcpy(buf->payload, ip_buf, size);
+    return buf;
 }
 
 int lowlevel_send(struct tbuf *buf, struct sockaddr_in sin)
 {
     int ret;
     ret = sendto(l3_send_sock, buf->payload, buf->len, 0, &sin, sizeof(sin));
-    perror("hehe");
     return ret;
 }
 
@@ -89,9 +94,8 @@ static void *recv_thread(void *args)
             break;
         }
 
-        if ((buf = tbuf_malloc(MTU_LEN)) != NULL) {
-            buf = tbuf_malloc(MTU_LEN);
-            lowlevel_recv(buf);
+        buf = lowlevel_recv();
+        if (buf != NULL) {
             ip_in(buf);
         } else {
             // tbuf cannot be alloced
