@@ -6,12 +6,13 @@
 #define TBUF_OK 0
 #define TBUF_FAIL 1
 
-#define ETH_HLEN 0
-#define IP_HLEN 20
+#define ETH_HLEN 14
+#define IP_HLEN 34
 #define TRANS_HLEN 20
 
 struct tbuf {
     // should have more
+    struct tbuf *next;
     __u16 len;
     __u8 *start;
     __u8 *payload;

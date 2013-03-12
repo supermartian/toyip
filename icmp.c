@@ -50,6 +50,7 @@ static void icmp_echo(struct tbuf *in)
     tot_len = in_ip->tot_len;
 
     out = tbuf_malloc(in->len);
+    // just take the input
     memcpy(out->payload, in->payload, in->len);
 
     tbuf_header(out, IP_HLEN);
@@ -63,6 +64,7 @@ static void icmp_echo(struct tbuf *in)
 
 static void icmp_tsr(struct tbuf *in)
 {
+    int len;
     struct iphdr *in_ip;
     struct icmphdr *out;
     struct icmphdr *icmp;
@@ -87,7 +89,7 @@ static void icmp_tsr(struct tbuf *in)
     *etime = htonl(time(NULL));
     etime++;
     *etime = htonl(time(NULL));
-    out->check = checksum_generic(out, sizeof(struct icmphdr) + sizeof(__u32) * 3);
+    out->check = checksum_generic(out, buf->len - IP_HLEN);
 
     tbuf_header(in, 0);
     in_ip = in->payload;
