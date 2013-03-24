@@ -13,6 +13,7 @@ int icmp_out(struct tbuf *buf)
 void icmp_in(struct tbuf *buf)
 {
     struct icmphdr *icmp;
+    tbuf_header(buf, IP_HLEN);
     icmp = (struct icmphdr *)buf->payload;
     switch (icmp->type) {
         case ICMP_ECHO:

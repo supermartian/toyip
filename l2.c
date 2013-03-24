@@ -33,6 +33,7 @@ int lowlevel_send(struct tbuf *buf, struct route *dstroute)
 
     memset(&sa, 0, sizeof(sa));
     ret = sendto(l2_sock, buf->payload, buf->len, 0, &sa, sizeof(sa));
+    tbuf_free(buf);
     return ret;
 }
 
@@ -55,13 +56,14 @@ static void *recv_thread(void *args)
 
         buf = lowlevel_recv();
         if (buf != NULL) {
-            tbuf_header(buf, ETH_HLEN);
-            ip_in(buf);
+            ether_in(buf);
+            tbuf_free(buf);
         } else {
             // tbuf cannot be alloced
             continue;
         }
     }
+
 }
 
 int l2_init()
@@ -69,7 +71,7 @@ int l2_init()
     void *thread_res;
     pthread_t rcv_thread;
 
-    if ((l2_sock = socket(PF_PACKET, SOCK_PACKET, htons(ETH_P_IP))) < 0) {
+    if ((l2_sock = socket(PF_PACKET, SOCK_PACKET, htons(ETH_P_ALL))) < 0) {
         perror("L2 could not be initialized");
         exit(1);
     }

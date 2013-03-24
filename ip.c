@@ -16,17 +16,17 @@ int ip_in(struct tbuf *buf)
 {
     struct iphdr *ip;
     __u16 checksum;
+
+    tbuf_header(buf, ETH_HLEN);
     ip = (struct iphdr *)buf->payload;
     checksum = checksum_generic((__u8 *)ip, ip->ihl * 4);
 
-    //printf("protocol type: %d, checksum: %x\n", ip->protocol, checksum);
     // Discard bogus packets
     if (checksum) {
         printf("screwed packet, dropped\n");
         return 0;
     }
 
-    tbuf_header(buf, IP_HLEN);
     if (l3protos[ip->protocol].type == ip->protocol) {
         l3protos[ip->protocol].handler(buf);
     }
@@ -61,7 +61,6 @@ int ip_out(struct tbuf *buf, __u32 src, __u32 dst, __u8 ttl,
     sin.sin_addr.s_addr = dst;
     lowlevel_send(buf, dstroute);
 
-    tbuf_free(buf);
     return 0;
 }
 

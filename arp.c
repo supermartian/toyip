@@ -2,18 +2,27 @@
 #include "tbuf.h"
 #include "l2.h"
 
+static void do_arp(struct tbuf *buf)
+{
+    struct arphdr *arp;
+    tbuf_header(buf, ETH_HLEN);
+
+    arp = buf->payload;
+    printf("arp htype: %d\n", htons(arp->htype));
+}
+
 int ether_in(struct tbuf *buf)
 {
     struct ethhdr2 *eth;
     struct arphdr *arp;
 
     tbuf_header(buf, 0);
-    eth = (struct ethhdr2 *)buf->payload;
+    eth = (struct ethhdr2 *) buf->payload;
 
-    printf("now");
-    switch (eth->ht) {
+    printf("ether in: %x\n", htons(eth->ht));
+    switch (htons(eth->ht)) {
         case ETHTYPE_ARP:
-    //        do_arp(buf);
+            do_arp(buf);
             break;
         case ETHTYPE_IP:
             ip_in(buf);
@@ -21,8 +30,6 @@ int ether_in(struct tbuf *buf)
         default:
             break;
     }
-
-    tbuf_free(buf);
 }
 
 int ether_out(struct tbuf *buf)
