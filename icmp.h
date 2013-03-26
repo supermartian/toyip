@@ -24,7 +24,7 @@ struct icmphdr {
     __u16 check;
     __u32 id;
     __u32 seqno;
-};
+}__attribute__((packed));
 
 int icmp_out(struct tbuf *buf);
 void icmp_in(struct tbuf *buf);

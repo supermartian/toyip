@@ -22,7 +22,7 @@ struct iphdr {
     __u32  saddr;
     __u32  daddr;
      /*The options start here. */
-};
+}__attribute__((packed));
 
 #define IP_ICMP 1
 #define IP_UDP  17
@@ -50,6 +50,9 @@ struct l3proto {
     l3_handler handler; 
 } l3protos[PROTO_NUM];
 
+
+void ip_to_string(char *ip, __u32 yiaddr);
+void dump_ip(__u32 addr);
 void set_default_route(struct route *gw);
 int ip_out(struct tbuf *buf, __u32 src, __u32 dst, __u8 ttl,
         __u8 protocol);

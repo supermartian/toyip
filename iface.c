@@ -3,12 +3,14 @@
 #include <sys/types.h>
 #include <sys/socket.h>
 #include <memory.h>
+#include <stdlib.h>
+#include <string.h>
 #include <linux/types.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
 #include "iface.h"
 
-static struct nl_req_s {
+struct nl_req_s {
     struct nlmsghdr hdr;
     struct rtgenmsg gen;
 };
@@ -72,28 +74,38 @@ static int get_faces()
     sendmsg(fd, (struct msghdr *) &rtnl_msg, 0);
 
     char reply[1024]; /* a large buffer */
+    int end = 0;
     int len;
-    struct nlmsghdr *msg_ptr;    /* pointer to current part */
-    struct msghdr rtnl_reply;    /* generic msghdr structure */
-    struct iovec io_reply;
-    memset(&io_reply, 0, sizeof(io_reply));
-    memset(&rtnl_reply, 0, sizeof(rtnl_reply));
 
-    io.iov_base = reply;
-    io.iov_len = 1024;
-    rtnl_reply.msg_iov = &io;
-    rtnl_reply.msg_iovlen = 1;
-    rtnl_reply.msg_name = &kernel;
-    rtnl_reply.msg_namelen = sizeof(kernel);
+    while (!end) {
+        struct nlmsghdr *msg_ptr;    /* pointer to current part */
+        struct msghdr rtnl_reply;    /* generic msghdr structure */
+        struct iovec io_reply;
+        memset(&io_reply, 0, sizeof(io_reply));
+        memset(&rtnl_reply, 0, sizeof(rtnl_reply));
 
-    len = recvmsg(fd, &rtnl_reply, 0); /* read lots of data */
+        io.iov_base = reply;
+        io.iov_len = 1024;
+        rtnl_reply.msg_iov = &io;
+        rtnl_reply.msg_iovlen = 1;
+        rtnl_reply.msg_name = &kernel;
+        rtnl_reply.msg_namelen = sizeof(kernel);
 
-    for (msg_ptr = (struct nlmsghdr *) reply; NLMSG_OK(msg_ptr, len); msg_ptr = NLMSG_NEXT(msg_ptr, len))
-    {
-        if (msg_ptr->nlmsg_type == RTM_NEWLINK) {
-            add_iface(msg_ptr);
+        if (len = recvmsg(fd, &rtnl_reply, 0)) {
+            for (msg_ptr = (struct nlmsghdr *) reply;
+                    NLMSG_OK(msg_ptr, len);
+                    msg_ptr = NLMSG_NEXT(msg_ptr, len)) {
+                if (msg_ptr->nlmsg_type == RTM_NEWLINK) {
+                    add_iface(msg_ptr);
+                } else if (msg_ptr->nlmsg_type == NLMSG_DONE) {
+                    printf("done\n");
+                    end++;
+                    break;
+                }
+            }
         }
     }
+
     return 0;
 }
 
@@ -141,12 +153,14 @@ static void add_iface(struct nlmsghdr *h)
 
 struct iface* get_iface_by_name(char *name)
 {
-    struct iface *face;
+    struct iface *face = NULL;
     for (face = face_list->next; face != NULL; face = face->next) {
         if (!strcmp(name, face->name)) {
             return face;
         }
     }
+
+    return NULL;
 }
 
 struct iface* get_iface_by_id(__u16 id)
@@ -157,6 +171,8 @@ struct iface* get_iface_by_id(__u16 id)
             return face;
         }
     }
+
+    return NULL;
 }
 
 struct iface* get_iface_by_ip(__u32 ip)
@@ -167,6 +183,20 @@ struct iface* get_iface_by_ip(__u32 ip)
             return face;
         }
     }
+
+    return NULL;
+}
+
+struct iface* get_iface_by_mac(__u8 *mac)
+{
+    struct iface *face;
+    for (face = face_list->next; face != NULL; face = face->next) {
+        if (!memcmp(face->hwaddr, mac, sizeof(__u8) * HWADDR_LEN)) {
+            return face;
+        }
+    }
+
+    return NULL;
 }
 
 void iface_init()

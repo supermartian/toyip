@@ -21,5 +21,6 @@ struct iface* face_list;
 struct iface* get_iface_by_name(char *name);
 struct iface* get_iface_by_id(__u16 id);
 struct iface* get_iface_by_ip(__u32 ip);
+struct iface* get_iface_by_mac(__u8 *mac);
 void iface_init();
 #endif

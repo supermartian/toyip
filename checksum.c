@@ -6,7 +6,7 @@
 __u16 fast_ip_checksum(struct iphdr *hdr)
 {
     __u32 result = 0;
-    __u16 *p = hdr;
+    __u16 *p = (__u16 *) hdr;
     int i = 0;
     for (i = 0; i < 10; i++) {
         result += (__u32) *p; 
@@ -24,7 +24,7 @@ __u16 checksum_generic(__u8 *buf, __u16 len)
     int odd;
     __u16 l;
     __u32 result = 0;
-    __u16 *p = buf;
+    __u16 *p = (__u16 *) buf;
     odd = len & 0x1;
     l = len - odd;
 

@@ -1,16 +1,38 @@
-#include <memory.h>
-#include <pthread.h>
 #include <stdlib.h>
-#include <sys/socket.h>
-#include <net/ethernet.h>
+#include <stdio.h>
+#include <memory.h>
 #include <netinet/in.h>
 
 #include "tbuf.h"
+#include "iface.h"
 #include "icmp.h"
 #include "ip.h"
 #include "checksum.h"
 #include "iface.h"
 #include "arp.h"
+
+void ip_to_string(char *ip, __u32 yiaddr)
+{
+    int a, b, c, d;
+    if (ip == NULL) {
+        return;
+    }
+    a = yiaddr >> 24;
+    b = (yiaddr << 8) >> 24;
+    c = (yiaddr << 16) >> 24;
+    d = (yiaddr << 24) >> 24;
+    if (a > 255 || b > 255 || c > 255 || d > 255 || a < 0 || b < 0 || c < 0
+    || d < 0)
+        return;
+    sprintf(ip, "%d.%d.%d.%d", d, c, b, a);
+}
+
+void dump_ip(__u32 addr)
+{
+    char ip[30];
+    ip_to_string(ip, addr);
+    printf("ip: %s\n", ip);
+}
 
 int ip_in(struct tbuf *buf)
 {
@@ -39,8 +61,9 @@ int ip_out(struct tbuf *buf, __u32 src, __u32 dst, __u8 ttl,
 {
     struct sockaddr_in sin;
     struct iphdr *ip;
-    struct ethhdr *ether;
+    struct ethhdr2 *ether;
     struct route *dstroute;
+    struct iface *dstdev;
 
     // rewind to the IP head of payload 
     tbuf_header(buf, ETH_HLEN);
@@ -54,12 +77,10 @@ int ip_out(struct tbuf *buf, __u32 src, __u32 dst, __u8 ttl,
 
     // rewind to the ethernet head of payload
     tbuf_header(buf, 0);
-    ether = (struct ether *)buf->payload;
+    ether = (struct ethhdr2 *) buf->payload;
 
     memset(&sin, 0, sizeof(sin));
-    sin.sin_family = AF_INET;
-    sin.sin_addr.s_addr = dst;
-    lowlevel_send(buf, dstroute);
+    ether_out(buf, ETHTYPE_IP, get_iface_by_name("eth0"));
 
     return 0;
 }
@@ -118,5 +139,6 @@ int main()
 {
     ip_init();
     iface_init();
+    arp_init();
     l2_init();
 }
