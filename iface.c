@@ -8,7 +8,12 @@
 #include <linux/types.h>
 #include <linux/netlink.h>
 #include <linux/rtnetlink.h>
+
 #include "iface.h"
+#include "arp.h"
+#include "tbuf.h"
+
+#define IFLIST_REPLY_BUFFER 8192
 
 struct nl_req_s {
     struct nlmsghdr hdr;
@@ -22,12 +27,14 @@ static void add_iface(struct nlmsghdr *h);
 static void dump_faces()
 {
     struct iface *face;
+    char ip[20];
     face = face_list->next;
     while (face != NULL) {
-        printf("Interface %d: hwaddr %x:%x:%x:%x:%x:%x ipaddr: %d mtu: %d name: %s\n",
+        ip_to_string(ip, face->ipaddr);
+        printf("Interface %d: hwaddr %x:%x:%x:%x:%x:%x ipaddr: %s mtu: %d name: %s\n",
                 face->id,
                 face->hwaddr[0], face->hwaddr[1], face->hwaddr[2], face->hwaddr[3], face->hwaddr[4], face->hwaddr[5],
-                face->ipaddr,
+                ip,
                 face->mtu, face->name);
         face = face->next;
     }
@@ -38,6 +45,7 @@ static int get_faces()
     int fd;
     fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
 
+    int end = 0;
     struct sockaddr_nl kernel;
     struct msghdr rtnl_msg;
     struct iovec io;
@@ -73,35 +81,32 @@ static int get_faces()
 
     sendmsg(fd, (struct msghdr *) &rtnl_msg, 0);
 
-    char reply[1024]; /* a large buffer */
-    int end = 0;
-    int len;
+    char reply[IFLIST_REPLY_BUFFER]; /* a large buffer */
 
     while (!end) {
+        int len;
         struct nlmsghdr *msg_ptr;    /* pointer to current part */
         struct msghdr rtnl_reply;    /* generic msghdr structure */
         struct iovec io_reply;
         memset(&io_reply, 0, sizeof(io_reply));
         memset(&rtnl_reply, 0, sizeof(rtnl_reply));
-
+ 
         io.iov_base = reply;
-        io.iov_len = 1024;
+        io.iov_len = IFLIST_REPLY_BUFFER;
         rtnl_reply.msg_iov = &io;
         rtnl_reply.msg_iovlen = 1;
         rtnl_reply.msg_name = &kernel;
         rtnl_reply.msg_namelen = sizeof(kernel);
-
-        if (len = recvmsg(fd, &rtnl_reply, 0)) {
-            for (msg_ptr = (struct nlmsghdr *) reply;
-                    NLMSG_OK(msg_ptr, len);
-                    msg_ptr = NLMSG_NEXT(msg_ptr, len)) {
-                if (msg_ptr->nlmsg_type == RTM_NEWLINK) {
-                    add_iface(msg_ptr);
-                } else if (msg_ptr->nlmsg_type == NLMSG_DONE) {
-                    printf("done\n");
-                    end++;
-                    break;
-                }
+ 
+        len = recvmsg(fd, &rtnl_reply, 0); /* read lots of data */
+ 
+        for (msg_ptr = (struct nlmsghdr *) reply; NLMSG_OK(msg_ptr, len); msg_ptr = NLMSG_NEXT(msg_ptr, len))
+        {
+            if (msg_ptr->nlmsg_type == RTM_NEWLINK) {
+                add_iface(msg_ptr);
+            } else if (msg_ptr->nlmsg_type == NLMSG_DONE) {
+                end = 1;
+                break;
             }
         }
     }
@@ -126,6 +131,7 @@ static void add_iface(struct nlmsghdr *h)
          {
               case IFLA_IFNAME:
                   strcpy(face->name, (char *) RTA_DATA(attribute));
+                  printf("face: %s\n", face->name);
 
                   // loopback is no needed
                   if (!strcmp(face->name, "lo")) {
@@ -197,6 +203,26 @@ struct iface* get_iface_by_mac(__u8 *mac)
     }
 
     return NULL;
+}
+
+
+void config_iface(struct iface *dev, __u32 mtu, __u32 ipaddr, __u32 netmask, __u32 gateway)
+{
+    struct tbuf *arpbuf;
+
+    dev->mtu = mtu;
+    dev->ipaddr = ipaddr;
+    dev->netmask = netmask;
+    dev->gateway = gateway;
+    printf("Configurating %s...\n", dev->name);
+    dump_faces();
+
+    arpbuf = build_arp(htonl(dev->ipaddr), 
+            dev->hwaddr, 
+            htonl(dev->ipaddr), 
+            NULL, 
+            ARP_REQUEST);
+    lowlevel_send(arpbuf, dev);
 }
 
 void iface_init()

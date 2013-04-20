@@ -3,6 +3,8 @@
 
 #include <linux/types.h>
 
+#include "iface.h"
+
 #define TBUF_OK 0
 #define TBUF_FAIL 1
 

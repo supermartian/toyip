@@ -57,5 +57,6 @@ int ether_in(struct tbuf *buf);
 int ether_out(struct tbuf *buf, int type, struct iface *dev);
 struct arpentry *arp_lookup(__u32 addr);
 int arp_cleanup();
+struct tbuf *build_arp(__u32 saddr, __u8 *shaddr, __u32 daddr, __u8 *dhaddr, int op);
 void dump_mac(__u8 *haddr);
 #endif

@@ -23,7 +23,7 @@ void dump_mac(__u8 *haddr)
 static void dump_arp_entry(struct arpentry *entry)
 {
     char ip[30];
-    ip_to_string(ip, entry->addr);
+    ip_to_string(ip, htonl(entry->addr));
     printf("haddr: %x:%x:%x:%x:%x:%x\nipaddr: %s\n", entry->haddr[0],
             entry->haddr[1],
             entry->haddr[2],
@@ -33,7 +33,6 @@ static void dump_arp_entry(struct arpentry *entry)
             ip);
 }
 
-static struct tbuf *build_arp(__u32 saddr, __u8 *shaddr, __u32 daddr, __u8 *dhaddr, int op);
 static void update_arp_entry(__u32 addr, __u8 *haddr, struct iface *dev);
 static void update_arp_entry(__u32 addr, __u8 *haddr, struct iface *dev)
 {
@@ -42,7 +41,7 @@ static void update_arp_entry(__u32 addr, __u8 *haddr, struct iface *dev)
     entry = GETARP();
 
     while (entry) {
-        if (addr == entry->addr) {
+        if (ntohl(addr) == entry->addr) {
             memcpy(entry->haddr, haddr, sizeof(__u8) * HWADDR_LEN);
             if (entry->status == ARP_PENDING) {
                 entry->status = ARP_COMPLETE;
@@ -64,7 +63,7 @@ static void update_arp_entry(__u32 addr, __u8 *haddr, struct iface *dev)
     // We can't find a match, create a new one
     if (entry == NULL) {
         new = malloc(sizeof(struct arpentry));
-        new->addr = addr;
+        new->addr = ntohl(addr);
         memcpy(new->haddr, haddr, sizeof(__u8) * HWADDR_LEN);
         new->queue = NULL;
         new->time = time(NULL);
@@ -86,14 +85,18 @@ static void do_arp(struct tbuf *buf)
 
     switch (ntohs(arp->op)) {
         case ARP_REQUEST:
-            printf("Arp Request for: ");
             dump_ip(arp->daddr);
             self = get_iface_by_ip(arp->daddr);
 
-            if (self != NULL) {
-                arpbuf = build_arp(self->ipaddr, self->hwaddr, arp->saddr, arp->shaddr, ARP_REPLY);
-                printf("Arp out\n");
+            if (self != NULL && arp->daddr != arp->saddr) {
+                arpbuf = build_arp(htonl(self->ipaddr), 
+                        self->hwaddr, 
+                        htonl(arp->saddr), 
+                        arp->shaddr, 
+                        ARP_REPLY);
+                printf("It's for me, arp out\n");
                 lowlevel_send(arpbuf, self);
+            } else {
             }
             break;
         case ARP_REPLY:
@@ -105,14 +108,16 @@ static void do_arp(struct tbuf *buf)
                 return;
             }
 
-            update_arp_entry(ntohl(arp->saddr), arp->shaddr, self);
+            printf("Arp reply for:");
+            dump_ip(arp->saddr);
+            update_arp_entry(arp->saddr, arp->shaddr, self);
             break;
         default:
             break;
     }
 }
 
-static struct tbuf *build_arp(__u32 saddr, __u8 *shaddr, __u32 daddr, __u8 *dhaddr, int op)
+struct tbuf *build_arp(__u32 saddr, __u8 *shaddr, __u32 daddr, __u8 *dhaddr, int op)
 {
     struct iface *dev;
     struct tbuf *arpbuf;
@@ -215,18 +220,25 @@ int ether_out(struct tbuf *buf, int type, struct iface *dev)
             ADDARP(e);
 
             struct tbuf *arpbuf;
-            printf("Arp response out\n");
-            dump_ip(dev->ipaddr);
-            arpbuf = build_arp(dev->ipaddr, dev->hwaddr, daddr, NULL, ARP_REQUEST);
+            printf("Arp request for: \n");
+            dump_ip(htonl(daddr));
+            arpbuf = build_arp(htonl(dev->ipaddr), dev->hwaddr, daddr, NULL, ARP_REQUEST);
             lowlevel_send(arpbuf, dev);
             return 1;
         } else {
-            printf("adding to queue\n");
+            printf("Adding to queue\n");
             struct arp_queue *q;
             q = malloc(sizeof(struct arp_queue));
             q->buf = buf;
             q->next = arp->queue->next;
             arp->queue->next = q;
+
+            struct tbuf *arpbuf;
+            printf("Arp request for: \n");
+            dump_ip(htonl(daddr));
+            arpbuf = build_arp(htonl(dev->ipaddr), dev->hwaddr, daddr, NULL, ARP_REQUEST);
+            lowlevel_send(arpbuf, dev);
+
             return 0;
         }
     }

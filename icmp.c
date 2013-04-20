@@ -58,11 +58,11 @@ static void icmp_echo(struct tbuf *in)
     in_ip = (struct iphdr *) in->payload;
     saddr = in_ip->daddr;
     daddr = in_ip->saddr;
-    tot_len = in_ip->tot_len;
+    tot_len = htons(in_ip->tot_len);
 
     out = tbuf_malloc(in->len);
-    // just take the input
-    memcpy(out->payload, in->payload, in->len);
+    // just take the input's payload
+    memcpy(out->payload, in->start, in->len);
 
     tbuf_header(out, IP_HLEN);
     out_icmp = (struct icmphdr *) out->payload;
@@ -70,6 +70,8 @@ static void icmp_echo(struct tbuf *in)
     out_icmp->check = 0;
     out_icmp->check = htons(checksum_generic(out_icmp, out->len - IP_HLEN));
     
+    printf("ICMP out: \n");
+    dump_ip(in_ip->saddr);
     ip_out(out, in_ip->daddr, in_ip->saddr, 32, IP_ICMP);
 }
 

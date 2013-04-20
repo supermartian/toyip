@@ -26,7 +26,6 @@ struct tbuf *lowlevel_recv()
     buf = tbuf_malloc(size);
     memcpy(buf->payload, ip_buf, size);
     tbuf_header(buf, 0);
-    ether_in(buf);
     return buf;
 }
 
@@ -145,7 +144,6 @@ int l2_init()
 
     printf("L2 initialized\n");
     pthread_create(&rcv_thread, NULL, recv_thread, NULL);
-    pthread_join(rcv_thread, &thread_res);
 
     return 0;
 }

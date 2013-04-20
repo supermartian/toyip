@@ -40,7 +40,7 @@ int ip_in(struct tbuf *buf)
     __u16 checksum;
 
     tbuf_header(buf, ETH_HLEN);
-    ip = (struct iphdr *)buf->payload;
+    ip = (struct iphdr *) buf->payload;
     checksum = checksum_generic((__u8 *)ip, ip->ihl * 4);
 
     // Discard bogus packets
@@ -73,14 +73,15 @@ int ip_out(struct tbuf *buf, __u32 src, __u32 dst, __u8 ttl,
     ip->saddr = src;
     ip->daddr = dst;
     ip->protocol = protocol;
-    ip->check = checksum_generic((__u8 *)ip, ip->ihl * 4);
+    ip->check = 0;
+    ip->check = htons(checksum_generic((__u8 *)ip, ip->ihl * 4));
 
     // rewind to the ethernet head of payload
     tbuf_header(buf, 0);
     ether = (struct ethhdr2 *) buf->payload;
 
     memset(&sin, 0, sizeof(sin));
-    ether_out(buf, ETHTYPE_IP, get_iface_by_name("eth0"));
+    ether_out(buf, ETHTYPE_IP, get_iface_by_name("wlan0"));
 
     return 0;
 }
@@ -141,4 +142,8 @@ int main()
     iface_init();
     arp_init();
     l2_init();
+    config_iface(get_iface_by_name("wlan0"), 1500, htonl(0xC0A80122), htonl(0xffffff00), htonl(0XC0A80101));
+    while(1){
+        sleep(10);
+    }
 }
