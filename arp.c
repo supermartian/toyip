@@ -50,6 +50,7 @@ static void update_arp_entry(__u32 addr, __u8 *haddr, struct iface *dev)
                 struct arp_queue *q = entry->queue;
                 struct arp_queue *n;
                 while (q) {
+                    ether_out(q->buf, ETHTYPE_IP, dev);
                     n = q->next;
                     free(q);
                     q = n;
@@ -207,41 +208,32 @@ int ether_out(struct tbuf *buf, int type, struct iface *dev)
         memcpy(eth->dm, dhaddr, HWADDR_LEN);
         lowlevel_send(buf, dev);
         return 1;
+    } else if (arp == NULL) {
+        printf("creating entry\n");
+        struct arpentry *e;
+        e = malloc(sizeof(struct arpentry));
+        e->status = ARP_PENDING;
+        e->addr = daddr;
+        e->queue = malloc(sizeof(struct arp_queue));
+        e->queue->next = NULL;
+        e->queue->buf = buf;
+        ADDARP(e);
     } else {
-        if (arp == NULL) {
-            printf("creating entry\n");
-            struct arpentry *e;
-            e = malloc(sizeof(struct arpentry));
-            e->status = ARP_PENDING;
-            e->addr = daddr;
-            e->queue = malloc(sizeof(struct arp_queue));
-            e->queue->next = NULL;
-            e->queue->buf = buf;
-            ADDARP(e);
-
-            struct tbuf *arpbuf;
-            printf("Arp request for: \n");
-            dump_ip(htonl(daddr));
-            arpbuf = build_arp(htonl(dev->ipaddr), dev->hwaddr, daddr, NULL, ARP_REQUEST);
-            lowlevel_send(arpbuf, dev);
-            return 1;
-        } else {
-            printf("Adding to queue\n");
-            struct arp_queue *q;
-            q = malloc(sizeof(struct arp_queue));
-            q->buf = buf;
-            q->next = arp->queue->next;
-            arp->queue->next = q;
-
-            struct tbuf *arpbuf;
-            printf("Arp request for: \n");
-            dump_ip(htonl(daddr));
-            arpbuf = build_arp(htonl(dev->ipaddr), dev->hwaddr, daddr, NULL, ARP_REQUEST);
-            lowlevel_send(arpbuf, dev);
-
-            return 0;
-        }
+        printf("Adding to queue\n");
+        struct arp_queue *q;
+        q = malloc(sizeof(struct arp_queue));
+        q->buf = buf;
+        q->next = arp->queue->next;
+        arp->queue->next = q;
     }
+
+    struct tbuf *arpbuf;
+    printf("Arp request for: \n");
+    dump_ip(htonl(daddr));
+    arpbuf = build_arp(htonl(dev->ipaddr), dev->hwaddr, daddr, NULL, ARP_REQUEST);
+    lowlevel_send(arpbuf, dev);
+
+    return 0;
 }
 
 struct arpentry *arp_lookup(__u32 addr)

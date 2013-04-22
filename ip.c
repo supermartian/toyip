@@ -81,7 +81,7 @@ int ip_out(struct tbuf *buf, __u32 src, __u32 dst, __u8 ttl,
     ether = (struct ethhdr2 *) buf->payload;
 
     memset(&sin, 0, sizeof(sin));
-    ether_out(buf, ETHTYPE_IP, get_iface_by_name("wlan0"));
+    ether_out(buf, ETHTYPE_IP, get_iface_by_name("eth0"));
 
     return 0;
 }
@@ -142,7 +142,7 @@ int main()
     iface_init();
     arp_init();
     l2_init();
-    config_iface(get_iface_by_name("wlan0"), 1500, htonl(0xC0A80122), htonl(0xffffff00), htonl(0XC0A80101));
+    config_iface(get_iface_by_name("eth0"), 1500, htonl(0xC0A80109), htonl(0xffffff00), htonl(0XC0A80101));
     while(1){
         sleep(10);
     }
