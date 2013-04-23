@@ -68,9 +68,9 @@ static void icmp_echo(struct tbuf *in)
     out_icmp = (struct icmphdr *) out->payload;
     out_icmp->type = ICMP_ER;
     out_icmp->check = 0;
-    out_icmp->check = htons(checksum_generic(out_icmp, out->len - IP_HLEN));
+    out_icmp->check = htons(checksum_generic(out_icmp, in->len - IP_HLEN));
     
-    printf("ICMP out: \n");
+    printf("ICMP out: ");
     dump_ip(in_ip->saddr);
     ip_out(out, in_ip->daddr, in_ip->saddr, 32, IP_ICMP);
 }

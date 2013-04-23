@@ -49,6 +49,11 @@ int ip_in(struct tbuf *buf)
         return 0;
     }
 
+    if (!get_iface_by_ip(ip->daddr)) {
+        // Go forward processing
+        return 0;
+    }
+
     if (l3protos[ip->protocol].type == ip->protocol) {
         l3protos[ip->protocol].handler(buf);
     }
@@ -81,8 +86,12 @@ int ip_out(struct tbuf *buf, __u32 src, __u32 dst, __u8 ttl,
     ether = (struct ethhdr2 *) buf->payload;
 
     memset(&sin, 0, sizeof(sin));
-    ether_out(buf, ETHTYPE_IP, get_iface_by_name("eth0"));
-
+    dstroute = ip_out_route(dst);
+    if (dstroute) {
+        ether_out(buf, ETHTYPE_IP, dstroute->dev);
+    } else {
+        printf("No route for %x\n", dst);
+    }
     return 0;
 }
 
@@ -91,7 +100,7 @@ void set_default_route(struct route* gw)
     struct route* p = GETROUTE();
     __u32 flag = 0;
 
-    while(p->next != NULL) {
+    while (p) {
         if (gw == p) {
             p->isdefault = 1;
             flag = 1;
@@ -105,6 +114,7 @@ void set_default_route(struct route* gw)
     if (!flag) {
         gw->next = p->next;
         p->next = gw;
+        gw->isdefault = 1;
     }
 
     default_route = gw;
@@ -115,7 +125,8 @@ struct route* ip_out_route(__u32 daddr)
     struct route* p = GETROUTE();
 
     while(p->next != NULL) {
-        if (ip_netcmp(daddr, p->mask, daddr)) {
+        printf("routing\n");
+        if (ip_netcmp(p->gateway, daddr, p->mask)) {
             return p;
         }
         p = p->next;        
@@ -143,6 +154,15 @@ int main()
     arp_init();
     l2_init();
     config_iface(get_iface_by_name("eth0"), 1500, htonl(0xC0A80109), htonl(0xffffff00), htonl(0XC0A80101));
+
+    struct route *gw = (struct route *) malloc(sizeof(struct route));
+    gw->dev = get_iface_by_name("eth0");
+    gw->isdefault = 1;
+    gw->gateway = htonl(0XC0A80101);
+    gw->mask = htonl(0XFFFFFF00);
+    ADDROUTE(gw);
+    set_default_route(gw);
+
     while(1){
         sleep(10);
     }
